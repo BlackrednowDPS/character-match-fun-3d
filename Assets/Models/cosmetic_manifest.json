@@ -1,0 +1,50 @@
+{
+  "generatedBySeed": 8261,
+  "archetypes": [
+    "Hardboiled",
+    "Fried",
+    "Scrambled"
+  ],
+  "cosmetics": [
+    {
+      "id": "Cosmetic_Eyewear_Sunglasses",
+      "category": "Eyewear",
+      "compatibleArchetypes": [
+        "Hardboiled",
+        "Fried",
+        "Scrambled"
+      ],
+      "socket": "Socket_Eyewear"
+    },
+    {
+      "id": "Cosmetic_Eyewear_Monocle",
+      "category": "Eyewear",
+      "compatibleArchetypes": [
+        "Hardboiled",
+        "Fried",
+        "Scrambled"
+      ],
+      "socket": "Socket_Eyewear"
+    },
+    {
+      "id": "Cosmetic_Head_TopHat",
+      "category": "Head",
+      "compatibleArchetypes": [
+        "Hardboiled",
+        "Fried",
+        "Scrambled"
+      ],
+      "socket": "Socket_Head"
+    },
+    {
+      "id": "Cosmetic_Head_Beanie",
+      "category": "Head",
+      "compatibleArchetypes": [
+        "Hardboiled",
+        "Fried",
+        "Scrambled"
+      ],
+      "socket": "Socket_Head"
+    }
+  ]
+}
