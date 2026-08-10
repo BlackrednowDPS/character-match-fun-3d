@@ -22,6 +22,7 @@ using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
@@ -53,6 +54,44 @@ namespace CMF3D.EditorTools
                 outputSubfolder: "Android");
         }
 
+        [MenuItem("Tools/Character Match Fun 3D/Build WebGL")]
+        public static void BuildWebGL()
+        {
+            ConfigureWebGLForStaticHosting();
+            RunBuild(
+                target: BuildTarget.WebGL,
+                targetGroup: BuildTargetGroup.WebGL,
+                outputSubfolder: "WebGL");
+        }
+
+        /// <summary>
+        /// GitHub Pages serves static files only and cannot set the
+        /// Content-Encoding headers Unity's compressed WebGL builds require.
+        /// Without decompressionFallback the player fails to load in the
+        /// browser with a console error about unsupported compression, so
+        /// this must be enabled for the Pages delivery target.
+        /// </summary>
+        private static void ConfigureWebGLForStaticHosting()
+        {
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+            PlayerSettings.WebGL.decompressionFallback = true;
+
+            // Keep the initial download small enough to be playable over a
+            // normal connection; also avoids Pages' per-file size limits.
+            PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.None;
+            PlayerSettings.WebGL.template = "APPLICATION:Minimal";
+            PlayerSettings.runInBackground = false;
+
+            // IL2CPP size-over-speed keeps the wasm payload down; gameplay is
+            // grid logic rather than heavy per-frame math, so the tradeoff is
+            // favourable for load time.
+            PlayerSettings.SetIl2CppCompilerConfiguration(
+                NamedBuildTarget.WebGL, Il2CppCompilerConfiguration.Master);
+            PlayerSettings.SetIl2CppCodeGeneration(
+                NamedBuildTarget.WebGL, Il2CppCodeGeneration.OptimizeSize);
+        }
+
         private static void RunBuild(BuildTarget target, BuildTargetGroup targetGroup, string outputSubfolder)
         {
             var startTime = DateTime.UtcNow;
@@ -70,13 +109,24 @@ namespace CMF3D.EditorTools
                 string outDir = Path.Combine(BuildsRoot, outputSubfolder);
                 Directory.CreateDirectory(outDir);
 
-                string executableName = target == BuildTarget.Android
-                    ? $"{ProductName}.apk"
-                    : (Application.platform == RuntimePlatform.OSXEditor
-                        ? $"{ProductName}.app"
-                        : $"{ProductName}.exe");
+                // WebGL builds output a DIRECTORY (index.html + Build/ + TemplateData/),
+                // not a single executable file, so locationPathName must be the
+                // folder itself. Appending a filename here produces a broken build.
+                string locationPathName;
+                if (target == BuildTarget.WebGL)
+                {
+                    locationPathName = outDir;
+                }
+                else
+                {
+                    string executableName = target == BuildTarget.Android
+                        ? $"{ProductName}.apk"
+                        : (Application.platform == RuntimePlatform.OSXEditor
+                            ? $"{ProductName}.app"
+                            : $"{ProductName}.exe");
 
-                string locationPathName = Path.Combine(outDir, executableName);
+                    locationPathName = Path.Combine(outDir, executableName);
+                }
 
                 var options = new BuildPlayerOptions
                 {
