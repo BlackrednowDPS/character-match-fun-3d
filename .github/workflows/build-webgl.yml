@@ -1,0 +1,89 @@
+name: Build WebGL and Deploy to Pages
+
+# Builds the Unity WebGL player in a clean Linux container and publishes it to
+# GitHub Pages. This deliberately does NOT depend on the local Windows Unity
+# install, whose Package Manager IPC is broken (see Docs/BUILD_TROUBLESHOOTING.md).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build WebGL
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # Unity's Library folder is expensive to regenerate; caching it turns a
+      # ~20 minute cold build into a few minutes on subsequent runs.
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+            Library-
+
+      - name: Build Unity WebGL player
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: 6000.5.6f1
+          targetPlatform: WebGL
+          buildName: CharacterMatchFun3D
+          buildsPath: build
+          # Use our own build entry point so WebGL-specific PlayerSettings
+          # (decompressionFallback etc.) are applied before BuildPipeline runs.
+          buildMethod: CMF3D.EditorTools.BuildScript.BuildWebGL
+          allowDirtyBuild: true
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebGL-Build
+          path: build
+          retention-days: 14
+
+      - name: Prepare Pages artifact
+        run: |
+          # unity-builder nests output under build/WebGL/...; find the folder
+          # that actually contains index.html and publish exactly that.
+          INDEX_DIR=$(dirname "$(find build -name index.html | head -n 1)")
+          echo "Publishing: $INDEX_DIR"
+          mkdir -p _site
+          cp -r "$INDEX_DIR"/. _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
