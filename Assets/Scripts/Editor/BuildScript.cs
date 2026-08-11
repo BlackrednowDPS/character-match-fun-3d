@@ -101,7 +101,10 @@ namespace CMF3D.EditorTools
 
             try
             {
-                Debug.Log($"[BuildScript] Ensuring scene is up to date via SceneAutoBuilder...");
+                Debug.Log("[BuildScript] Ensuring URP pipeline asset is assigned...");
+                URPSetup.EnsureUrpAssigned();
+
+                Debug.Log("[BuildScript] Ensuring scene is up to date via SceneAutoBuilder...");
                 SceneAutoBuilder.BuildScene();
 
                 EnsureBuildTarget(target, targetGroup);

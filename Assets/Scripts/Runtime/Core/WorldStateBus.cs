@@ -4,10 +4,28 @@ using UnityEngine;
 namespace CMF3D.Runtime
 {
     /// <summary>Identifies the broad season selected for the current player region.</summary>
-    public enum SeasonType { Spring, Summer, Fall, Winter }
+    public enum SeasonType
+    {
+        /// <summary>March-to-May northern season.</summary>
+        Spring,
+        /// <summary>June-to-August northern season.</summary>
+        Summer,
+        /// <summary>September-to-November northern season.</summary>
+        Fall,
+        /// <summary>December-to-February northern season.</summary>
+        Winter
+    }
 
     /// <summary>Identifies an optional live holiday overlay without carrying scene references.</summary>
-    public enum HolidayEvent { None, HalloweenJackOLanternEgg, WinterSantaYolk }
+    public enum HolidayEvent
+    {
+        /// <summary>No active holiday overlay.</summary>
+        None,
+        /// <summary>Halloween Jack-o'-Lantern Egg overlay.</summary>
+        HalloweenJackOLanternEgg,
+        /// <summary>Winter Santa Yolk overlay.</summary>
+        WinterSantaYolk
+    }
 
     /// <summary>Immutable, allocation-free copy of the latest world inputs.</summary>
     public readonly struct WorldStateSnapshot

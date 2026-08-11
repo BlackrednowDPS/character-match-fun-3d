@@ -53,20 +53,25 @@ namespace CMF3D.Runtime
         [Serializable]
         private sealed class OpenMeteoResponse
         {
+            /// <summary>Current conditions returned by Open-Meteo.</summary>
             public OpenMeteoCurrent current;
         }
 
         [Serializable]
         private sealed class OpenMeteoCurrent
         {
+            /// <summary>Current temperature in Celsius.</summary>
             public float temperature_2m;
+            /// <summary>WMO weather interpretation code.</summary>
             public int weather_code;
         }
 
         [Serializable]
         private sealed class WeatherCacheRecord
         {
+            /// <summary>Round-trip UTC timestamp for rate-limit age checks.</summary>
             public string fetchedUtc;
+            /// <summary>Last valid raw Open-Meteo response.</summary>
             public string responseJson;
         }
 

@@ -185,7 +185,7 @@ namespace CMF3D.Runtime
                 QueryTriggerInteraction.Ignore);
             for (int i = 0; i < hitCount; i++)
             {
-                if (raycastHits[i].collider.GetComponentInParent<EggPiece>() != null)
+                if (raycastHits[i].collider != null)
                 {
                     return true;
                 }

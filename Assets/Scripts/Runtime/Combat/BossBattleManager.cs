@@ -241,6 +241,7 @@ namespace CMF3D.Runtime
     {
         [SerializeField] private BossProfile activeBoss;
         [SerializeField] private ProjectilePool projectilePool;
+        [SerializeField] private MeshFractureEngine meshFractureEngine;
         [SerializeField] private GridManager3D gridManager;
         [SerializeField] private Transform bossSpawnPoint;
         [SerializeField, Min(0.1f)] private float projectileSpeed = 16f;
@@ -376,6 +377,12 @@ namespace CMF3D.Runtime
             }
 
             CurrentHP = Mathf.Max(0, CurrentHP - amount);
+            if (meshFractureEngine != null && bossSpawnPoint != null && activeBoss != null)
+            {
+                float normalizedImpact = Mathf.Clamp01(amount /
+                    (float)Mathf.Max(1, activeBoss.PlayerBaseDamage * 3));
+                meshFractureEngine.TriggerFracture(activeBoss.name, bossSpawnPoint.position, normalizedImpact);
+            }
             if (activeBoss != null && attackStartHP - CurrentHP >= Mathf.CeilToInt(activeBoss.MaxHP * 0.2f))
             {
                 ExpediteCounter(CounterAttackType.WhiskScramble);

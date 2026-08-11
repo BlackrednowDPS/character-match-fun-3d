@@ -5,7 +5,15 @@ using UnityEngine;
 namespace CMF3D.Runtime
 {
     /// <summary>Describes the geometric shape of a resolved match attack.</summary>
-    public enum MatchShape { Line, LShape, TShape }
+    public enum MatchShape
+    {
+        /// <summary>A straight horizontal or vertical match.</summary>
+        Line,
+        /// <summary>An intersecting match with one perpendicular arm.</summary>
+        LShape,
+        /// <summary>An intersecting match with two perpendicular arms.</summary>
+        TShape
+    }
 
     /// <summary>Applies a board effect without adding effect-specific branches to the grid core.</summary>
     public interface IBoardEffect
@@ -26,6 +34,7 @@ namespace CMF3D.Runtime
         [SerializeField] private LayerMask pieceLayerMask = ~0;
         [SerializeField, Min(0.1f)] private float cellSpacing = 1f;
         [SerializeField, Min(0f)] private float minimumDragPixels = 18f;
+        [SerializeField, Min(0.02f)] private float scramblePhysicsSeconds = 0.18f;
         [SerializeField] private CulinaryReactionSystem culinaryReactionSystem;
         [SerializeField] private MeshFractureEngine meshFractureEngine;
         [SerializeField] private BossBattleManager bossBattleManager;
@@ -52,6 +61,7 @@ namespace CMF3D.Runtime
         private bool hasDeferredAreaClear;
         private Vector2Int deferredAreaCenter;
         private int deferredAreaRadius;
+        private float scrambleSettleAt = -1f;
 
         /// <summary>Gets the score accumulated from resolved pieces in this board session.</summary>
         public int Score { get; private set; }
@@ -101,6 +111,14 @@ namespace CMF3D.Runtime
 
         private void Update()
         {
+            if (scrambleSettleAt >= 0f)
+            {
+                if (Time.unscaledTime >= scrambleSettleAt)
+                {
+                    CompleteScramblePhysics();
+                }
+                return;
+            }
             if (!initialized || resolving)
             {
                 return;
@@ -233,7 +251,7 @@ namespace CMF3D.Runtime
                     continue;
                 }
 
-                EggPiece candidate = raycastHits[i].collider.GetComponentInParent<EggPiece>();
+                EggPiece candidate = FindPieceForCollider(raycastHits[i].collider);
                 if (candidate != null)
                 {
                     nearestDistance = raycastHits[i].distance;
@@ -248,6 +266,33 @@ namespace CMF3D.Runtime
 
             cell = nearestPiece.BoardPosition;
             return IsInside(cell.x, cell.y);
+        }
+
+        private EggPiece FindPieceForCollider(Collider hitCollider)
+        {
+            if (hitCollider == null)
+            {
+                return null;
+            }
+            Rigidbody attachedBody = hitCollider.attachedRigidbody;
+            Transform hitTransform = hitCollider.transform;
+            for (int y = 0; y < rows; y++)
+            {
+                for (int x = 0; x < columns; x++)
+                {
+                    EggPiece piece = board[x, y];
+                    if (piece == null)
+                    {
+                        continue;
+                    }
+                    if ((attachedBody != null && attachedBody == piece.Body) || hitTransform == piece.transform ||
+                        hitTransform.IsChildOf(piece.transform))
+                    {
+                        return piece;
+                    }
+                }
+            }
+            return null;
         }
 
         private bool TrySwap(Vector2Int a, Vector2Int b)
@@ -446,8 +491,8 @@ namespace CMF3D.Runtime
                 int j = random.Next(i + 1);
                 SwapCells(i % columns, i / columns, j % columns, j / columns);
             }
-            ApplyImpulseToAll(explosionOrigin, radius);
             ResolveAnyPrematches();
+            ApplyImpulseToAll(explosionOrigin, radius);
         }
 
         /// <summary>Randomly shuffles the requested percentage of occupied board cells.</summary>
@@ -761,18 +806,29 @@ namespace CMF3D.Runtime
 
         private MatchShape DetermineMatchShape()
         {
+            MatchShape detected = MatchShape.Line;
             for (int i = 0; i < matchScratchBuffer.Count; i++)
             {
                 Vector2Int p = matchScratchBuffer[i].BoardPosition;
-                bool horizontal = IsMarked(p.x - 1, p.y) || IsMarked(p.x + 1, p.y);
-                bool vertical = IsMarked(p.x, p.y - 1) || IsMarked(p.x, p.y + 1);
-                if (horizontal && vertical) return MatchShape.TShape;
+                int horizontalNeighbors = (IsMarked(p.x - 1, p.y) ? 1 : 0) +
+                    (IsMarked(p.x + 1, p.y) ? 1 : 0);
+                int verticalNeighbors = (IsMarked(p.x, p.y - 1) ? 1 : 0) +
+                    (IsMarked(p.x, p.y + 1) ? 1 : 0);
+                if (horizontalNeighbors > 0 && verticalNeighbors > 0)
+                {
+                    if (horizontalNeighbors == 2 || verticalNeighbors == 2)
+                    {
+                        return MatchShape.TShape;
+                    }
+                    detected = MatchShape.LShape;
+                }
             }
-            return MatchShape.Line;
+            return detected;
         }
 
         private void ApplyImpulseToAll(Vector3 origin, float radius)
         {
+            resolving = true;
             for (int y = 0; y < rows; y++)
             {
                 for (int x = 0; x < columns; x++)
@@ -782,10 +838,35 @@ namespace CMF3D.Runtime
                     {
                         body.isKinematic = false;
                         body.AddExplosionForce(4f, origin, Mathf.Max(0.1f, radius), 0.2f, ForceMode.Impulse);
-                        body.isKinematic = true;
                     }
                 }
             }
+            scrambleSettleAt = Time.unscaledTime + scramblePhysicsSeconds;
+        }
+
+        private void CompleteScramblePhysics()
+        {
+            for (int y = 0; y < rows; y++)
+            {
+                for (int x = 0; x < columns; x++)
+                {
+                    EggPiece piece = board[x, y];
+                    if (piece == null)
+                    {
+                        continue;
+                    }
+                    Rigidbody body = piece.Body;
+                    if (body != null)
+                    {
+                        body.linearVelocity = Vector3.zero;
+                        body.angularVelocity = Vector3.zero;
+                        body.isKinematic = true;
+                    }
+                    PlacePiece(piece, x, y);
+                }
+            }
+            scrambleSettleAt = -1f;
+            resolving = false;
         }
 
         private void DecrementLocks()
