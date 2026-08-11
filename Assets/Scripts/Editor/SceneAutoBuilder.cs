@@ -16,6 +16,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.SceneManagement;
 
 namespace CMF3D.EditorTools
 {
@@ -195,7 +196,10 @@ namespace CMF3D.EditorTools
 
             Dictionary<string, Material> materialLookup = BuildMaterialLookup();
 
-            var renderers = Object.FindObjectsOfType<MeshRenderer>(true);
+            // FindObjectsOfType is deprecated in Unity 6; FindObjectsByType with
+            // FindObjectsSortMode.None also skips the sort, which is wasted work here.
+            var renderers = Object.FindObjectsByType<MeshRenderer>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
             int assigned = 0;
 
             foreach (var renderer in renderers)
