@@ -1,0 +1,52 @@
+name: Deploy Prebuilt WebGL to Pages
+
+# Publishes the WebGL player that was built locally in the Unity Editor and
+# committed under Builds/WebGL. This bypasses GameCI licence activation
+# entirely (see Docs/BUILD_TROUBLESHOOTING.md) — the build already succeeded
+# on the developer machine, so CI only needs to serve the artefact.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Builds/WebGL/**'
+      - '.github/workflows/deploy-prebuilt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Publish WebGL build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify build output exists
+        run: |
+          if [ ! -f Builds/WebGL/index.html ]; then
+            echo "::error::Builds/WebGL/index.html not found — nothing to publish."
+            exit 1
+          fi
+          echo "Publishing:"
+          ls -la Builds/WebGL
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: Builds/WebGL
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
