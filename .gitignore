@@ -47,3 +47,6 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+
+# Local web tooling cache
+.esbuild_tmp/
